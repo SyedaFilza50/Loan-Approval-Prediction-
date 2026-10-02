@@ -1,0 +1,313 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+
+st.set_page_config(
+    page_title="Loan Approval Prediction",
+    layout="wide"
+)
+
+# =====================================================
+# SESSION STATE
+# =====================================================
+
+if "show_form" not in st.session_state:
+    st.session_state.show_form = False
+
+if "prediction_done" not in st.session_state:
+    st.session_state.prediction_done = False
+
+# =====================================================
+# CUSTOM CSS
+# =====================================================
+
+st.markdown("""
+<style>
+
+/* PAGE */
+
+.block-container{
+    padding-top:1rem;
+    padding-left:2rem;
+    padding-right:2rem;
+}
+
+/* MAIN TITLE */
+
+.main-title{
+    text-align:center;
+    color:darkblue;
+    font-size:42px;
+    font-weight:700;
+    margin-bottom:5px;
+}
+
+/* SUB TITLE */
+
+.sub-title{
+    text-align:center;
+    color:gray;
+    margin-bottom:20px;
+    font-size:20px;
+}
+
+/* APPLICANT TITLE */
+
+.applicant-title{
+    text-align:center;
+    color:white;
+    font-size:30px;
+    font-weight:700;
+    margin-bottom:0px;
+}
+
+/* BUTTON */
+
+.stButton > button{
+    width:100%;
+    height:52px;
+    border-radius:12px;
+    background:#111827;
+    color:white;
+    font-size:17px;
+    font-weight:600;
+    border:none;
+}
+
+.stButton > button:hover{
+    background:#374151;
+    color:white;
+}
+
+/* LABELS */
+
+label{
+    color:#111827 !important;
+    font-weight:600 !important;
+    font-size:16px !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# =====================================================
+# HEADER
+# =====================================================
+
+st.markdown("""
+<h1 class='main-title'>
+🏦 Loan Approval Prediction System
+</h1>
+
+<h4 class='sub-title'>
+Machine Learning Based Loan Eligibility Prediction
+</h4>
+""", unsafe_allow_html=True)
+
+# =====================================================
+# LOAD MODEL
+# =====================================================
+
+model = joblib.load("loan_model.pkl")
+scaler = joblib.load("scaler.pkl")
+
+# =====================================================
+# FEATURE LIST
+# =====================================================
+
+selected_features = [
+    'cibil_score',
+    'loan_term',
+    'income_loan_ratio',
+    'loan_per_term',
+    'income_annum',
+    'loan_amount',
+    'total_assets',
+    'no_of_dependents'
+]
+
+# =====================================================
+# INITIAL SCREEN
+# =====================================================
+
+if st.session_state.show_form == False:
+
+    # SMALL IMAGE CENTER
+
+    left_img, center_img, right_img = st.columns([1,2,1])
+
+    with center_img:
+
+        st.image(
+            "image6.jpg",
+            width=1150
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # CENTER BUTTON
+
+    b1, b2, b3 = st.columns([2.1,1,1.5])
+
+    with b2:
+
+        if st.button("Predict Loan"):
+
+            st.session_state.show_form = True
+            st.rerun()
+
+# =====================================================
+# FORM SCREEN
+# =====================================================
+
+else:
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    left, center, right = st.columns([1,1.2,1])
+
+    with center:
+
+        # =================================================
+        # HEADING ONLY
+        # =================================================
+
+        st.markdown("""
+        <h2 class='applicant-title'>
+        Applicant Details
+        </h2>
+        """, unsafe_allow_html=True)
+
+        # =================================================
+        # FORM BOX START
+        # =================================================
+
+        st.markdown("""
+        <div class='form-box'>
+        """, unsafe_allow_html=True)
+
+        # =================================================
+        # INPUTS
+        # =================================================
+
+        cibil_score = st.slider(
+            "CIBIL Score",
+            300,
+            900,
+            750
+        )
+
+        loan_term = st.slider(
+            "Loan Term",
+            2,
+            20,
+            10
+        )
+
+        income_annum = st.number_input(
+            "Annual Income",
+            value=5000000
+        )
+
+        loan_amount = st.number_input(
+            "Loan Amount",
+            value=10000000
+        )
+
+        total_assets = st.number_input(
+            "Total Assets",
+            value=15000000
+        )
+
+        dependents = st.slider(
+            "Number of Dependents",
+            0,
+            5,
+            2
+        )
+
+        # =================================================
+        # FEATURE ENGINEERING
+        # =================================================
+
+        income_loan_ratio = (
+            income_annum / loan_amount
+        )
+
+        loan_per_term = (
+            loan_amount / loan_term
+        )
+
+        # =================================================
+        # INPUT DATA
+        # =================================================
+
+        input_data = pd.DataFrame([[
+
+            cibil_score,
+            loan_term,
+            income_loan_ratio,
+            loan_per_term,
+            income_annum,
+            loan_amount,
+            total_assets,
+            dependents
+
+        ]], columns=selected_features)
+
+        input_scaled = scaler.transform(
+            input_data
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # =================================================
+        # CENTER FINAL BUTTON
+        # =================================================
+
+        c1, c2, c3 = st.columns([2,3,1])
+
+        with c2:
+
+            if st.button("Final Predict Loan Status"):
+
+                prediction = model.predict(
+                    input_scaled
+                )
+
+                probability = model.predict_proba(
+                    input_scaled
+                )
+
+                st.session_state.prediction_done = True
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # =============================================
+                # RESULT BELOW BUTTON
+                # =============================================
+
+                if prediction[0] == 0:
+
+                    st.success(
+                        "✅ Loan Approved"
+                    )
+
+                else:
+
+                    st.error(
+                        "❌ Loan Rejected"
+                    )
+
+                st.info(
+                    f"Prediction Confidence: {round(np.max(probability)*100,2)} %"
+                )
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
